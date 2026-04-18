@@ -1,7 +1,7 @@
-# Cấu hình Build & Start - Render.com
-name: trueface-backend
-buildCommand: pip install -r requirements.txt
-startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+# Cấu hình Render - Deploy Web Backend
+preDeployCommand: pip install -r requirements.txt
+deployCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+healthCheckPath: /
 envVars:
   - key: FLASK_ENV
     value: production
@@ -11,6 +11,6 @@ envVars:
     value: "3.12.3"
 services:
   - type: web
-    name: your-app
+    name: trueface-backend
     env: python
     runtime: python312
