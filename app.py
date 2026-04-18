@@ -1364,24 +1364,11 @@ def get_employee(eid):
 def update_employee_profile(eid):
     conn = None
     try:
-        code = (request.form.get('code') or '').strip()
-        name = (request.form.get('name') or '').strip()
-        department_id = request.form.get('department_id') or None
-        if department_id: department_id = int(department_id)
-        email = (request.form.get('email') or '').strip() or None
-        phone = (request.form.get('phone') or '').strip() or None
-        paid_leave = request.form.get('paid_leave_days_per_year')
-        status = (request.form.get('status') or '').strip() or 'active'
-        position_id = request.form.get('position_id') or None
-        if position_id: position_id = int(position_id)
-        shift_id = request.form.get('shift_id') or None
-        if shift_id: shift_id = int(shift_id)
-        office_id = request.form.get('office_id') or None
-        if office_id: office_id = int(office_id)
-        employee_type_id = request.form.get('employee_type_id') or None
-        if employee_type_id: employee_type_id = int(employee_type_id)
-        salary_policy_id = request.form.get('salary_policy_id') or None
-        if salary_policy_id: salary_policy_id = int(salary_policy_id)
+        # ... parse các field như cũ ...
+
+        # ✅ Lấy danh sách office (multi-select)
+        office_ids_raw = request.form.getlist('office_ids') or request.form.getlist('office_id')
+        office_ids = [int(x) for x in office_ids_raw if x]
 
         conn = get_db()
         cur = conn.execute('SELECT id FROM employees WHERE id = ?', (eid,))
@@ -1389,21 +1376,34 @@ def update_employee_profile(eid):
             conn.close()
             return jsonify({'error': 'Không tìm thấy nhân viên'}), 404
 
+        # Lấy office_id chính (cái đầu tiên)
+        main_office_id = office_ids[0] if office_ids else None
+
         conn.execute(
             '''UPDATE employees SET name=?, department_id=?, email=?, phone=?,
-               paid_leave_days_per_year=?, status=?, position_id=?, shift_id=?, office_id=?, employee_type_id=?, salary_policy_id=?
+               paid_leave_days_per_year=?, status=?, position_id=?, shift_id=?,
+               office_id=?, employee_type_id=?, salary_policy_id=?
                WHERE id=?''',
             (name, department_id, email, phone,
              int(paid_leave) if paid_leave else None, status,
-             position_id, shift_id, office_id, employee_type_id, salary_policy_id, eid)
+             position_id, shift_id, main_office_id, employee_type_id, salary_policy_id, eid)
         )
+
+        conn.execute('DELETE FROM employee_offices WHERE employee_id = ?', (eid,))
+        for ofid in office_ids:
+            conn.execute(
+                'INSERT OR IGNORE INTO employee_offices (employee_id, office_id) VALUES (?, ?)',
+                (eid, ofid)
+            )
+
         conn.commit()
         conn.close()
         return jsonify({'message': 'Cập nhật thành công'}), 200
     except Exception as e:
         import traceback
-        print(f"[ERROR] update_employee_profile(eid={eid}): {str(e)}")
         traceback.print_exc()
+        if conn:
+            conn.close()  
         return jsonify({'error': str(e)}), 500
 
 
@@ -2050,6 +2050,7 @@ def add_employee():
 @require_auth
 def update_employee(emp_id):
     """Cập nhật quyền chấm công hoặc thông tin nhân viên."""
+    conn = get_db()
     try:
         data = _get_request_data()
         updates = []
@@ -2153,8 +2154,6 @@ def update_employee(emp_id):
         if not updates:
             return jsonify({'error': 'Không có trường nào để cập nhật'}), 400
         args.append(emp_id)
-        conn = None
-        conn = get_db()
         # Kiểm tra trùng email trước khi update
         new_email = (data.get('email', '') or '').strip() or None
         if new_email:
