@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#1E88E5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0c1017" media="(prefers-color-scheme: dark)">
+  <meta name="color-scheme" content="light dark">
+  <title>Đăng nhập – TrueFace</title>
+  <link rel="icon" href="trueface_logo.png" type="image/png">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <!-- Theme init (chạy trước khi body render) -->
+  <script src="js/theme.js"></script>
+  <!-- Mojibake fix -->
+  <script src="js/mojibake.js"></script>
+  <!-- External styles -->
+  <link rel="stylesheet" href="css/login.css">
+</head>
+<body>
+  <div class="login-shell">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="brand">
+          <img src="trueface_logo.png" alt="TrueFace" class="brand-logo-img" decoding="async">
+          <div>
+            <div class="brand-text-title">TrueFace</div>
+            <div class="brand-text-sub">Quản trị nhân sự & chấm công</div>
+          </div>
+        </div>
+        <button type="button" class="theme-toggle" id="themeToggle" title="Chế độ sáng / tối" aria-label="Chuyển giao diện sáng tối">
+          <span class="material-icons" id="themeToggleIcon">dark_mode</span>
+        </button>
+      </div>
+      <h1 class="login-title">Đăng nhập</h1>
+      <p class="login-sub">Đăng nhập để truy cập hệ thống HRM và quản lý nhân sự.</p>
+      <div id="msg"></div>
+      <form id="formLogin">
+        <div class="form-group">
+          <label for="username">Tên đăng nhập</label>
+          <input type="text" name="username" id="username" placeholder="VD: admin" required autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label for="password">Mật khẩu</label>
+          <input type="password" name="password" id="password" placeholder="••••••••" required autocomplete="current-password">
+          <label class="pw-meta">
+            <input type="checkbox" id="togglePassword">
+            <span>Hiện mật khẩu</span>
+          </label>
+        </div>
+        <div class="login-meta">
+          <label class="remember-wrap">
+            <input type="checkbox" id="rememberMe" checked>
+            <span>Giữ tôi luôn đăng nhập</span>
+          </label>
+          <a class="link" href="javascript:void(0)" onclick="openForgotPassword()">Quên mật khẩu?</a>
+        </div>
+        <button type="submit" class="btn-login" id="btnLogin">Đăng nhập</button>
+      </form>
+      <div class="login-footer">
+        <span>Đăng nhập bằng tài khoản do quản trị viên cấp.</span>
+      </div>
+    </div>
+    <aside class="login-aside">
+      <div class="login-aside-badge">
+        <span class="material-icons" style="font-size:16px;">verified_user</span>
+        TrueFace 
+      </div>
+      <h2 class="login-aside-title">Nền tảng quản trị nhân sự hiện đại</h2>
+      
+      <ul class="login-aside-list">
+        <li><span class="dot"></span><span>Quản lý danh sách nhân sự, ca làm việc và chấm công.</span></li>
+        <li><span class="dot"></span><span>Theo dõi đơn xin nghỉ và lịch sử làm việc.</span></li>
+        <li><span class="dot"></span><span>Đồng bộ với ứng dụng chấm công trên di động.</span></li>
+      </ul>
+    </aside>
+  </div>
+  <!-- Modal quên mật khẩu -->
+  <div class="login-shell" id="forgotModal" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.55); align-items:center; justify-content:center; padding:16px; z-index:1000;">
+    <div class="login-card" style="max-width:460px; max-height:92vh; overflow-y:auto;">
+      <h1 class="login-title" style="margin-bottom:8px;">Quên mật khẩu</h1>
+      <p class="login-sub" style="margin-bottom:16px;">OTP gửi tới email hoặc SĐT đã lưu trong hồ sơ.</p>
+      <div id="forgotMsg"></div>
+      <form id="forgotForm">
+        <div class="form-group">
+          <label for="fp_username">Tên đăng nhập</label>
+          <input type="text" id="fp_username" placeholder="VD: mã nhân viên" autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label>Cách xác thực</label>
+          <div style="display:flex;flex-wrap:wrap;gap:12px;font-size:14px;">
+            <label style="cursor:pointer;"><input type="radio" name="fp_channel" value="email" checked> Email OTP</label>
+            <label style="cursor:pointer;"><input type="radio" name="fp_channel" value="sms"> SMS OTP</label>
+          </div>
+        </div>
+        <div class="form-group" id="fp_send_otp_row" style="display:flex; gap:8px;">
+          <button type="button" class="btn-login" id="btnSendOtp" style="flex:1; background:#64748b;">Gửi mã OTP</button>
+        </div>
+        <div class="form-group">
+          <label for="fp_otp">Mã OTP (6 số)</label>
+          <input type="text" id="fp_otp" placeholder="Nhập 6 số" autocomplete="one-time-code">
+        </div>
+        <div class="form-group">
+          <label for="fp_new_password">Mật khẩu mới</label>
+          <input type="password" id="fp_new_password" placeholder="≥6 ký tự, có chữ và số" autocomplete="new-password">
+        </div>
+        <div style="display:flex; gap:8px; margin-top:4px;">
+          <button type="button" class="btn-login" id="btnResetPassword" style="flex:1;">Đặt lại mật khẩu</button>
+        </div>
+        <div style="margin-top:10px; text-align:center;">
+          <a href="javascript:void(0)" class="link" onclick="closeForgotPassword()">Đóng</a>
+        </div>
+      </form>
+    </div>
+  </div>
+  <script src="js/login.js"></script>
+</body>
+</html>
+
+

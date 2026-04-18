@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quản trị nhân sự – Chấm công</title>
+  <link rel="icon" href="trueface_logo.png" type="image/png">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="js/mojibake.js"></script>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div id="toast-container"></div>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <button type="button" class="sidebar-brand" id="sidebarAccountBtn" title="Thông tin tài khoản" aria-label="Mở trang thông tin tài khoản">
+          <div class="avatar-wrap">
+            <img id="sidebarAvatarImg" class="avatar-img" alt="" width="44" height="44" decoding="async">
+            <div class="avatar avatar-trueface-logo" id="sidebarAvatarInitial" aria-hidden="true">
+              <img src="trueface_logo.png" alt="" class="sidebar-brand-logo-img" width="40" height="40" decoding="async">
+            </div>
+          </div>
+          <div>
+            <div class="sidebar-brand-text" id="sidebarAdminName">TrueFace – Admin</div>
+            <div class="sidebar-brand-sub" id="sidebarAccountHint">Quản trị nhân sự</div>
+          </div>
+        </button>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">Tổng quan</div>
+        <a class="nav-item active" data-view="dashboard">
+          <span class="material-icons">dashboard</span>
+          <span>Bảng điều khiển</span>
+        </a>
+
+        <div class="nav-section-title">Quản lý nhân sự</div>
+        <a class="nav-item" data-view="employees">
+          <span class="material-icons">people</span>
+          <span>Danh sách nhân sự</span>
+        </a>
+
+        <a class="nav-item" data-view="shifts">
+          <span class="material-icons">schedule</span>
+          <span>Ca làm việc</span>
+        </a>
+        <a class="nav-item" data-view="departments">
+          <span class="material-icons">domain</span>
+          <span>Phòng ban</span>
+        </a>
+        <a class="nav-item" data-view="positions">
+          <span class="material-icons">work_outline</span>
+          <span>Chức vụ</span>
+        </a>
+
+        <div class="nav-section-title">Chấm công & Nghỉ phép</div>
+        <a class="nav-item" data-view="attendanceLog">
+          <span class="material-icons">history</span>
+          <span>Lịch sử chấm công</span>
+          <span id="navPendingOutside" class="nav-item-count-badge"></span>
+        </a>
+        <a class="nav-item" data-view="payroll">
+          <span class="material-icons">payments</span>
+          <span>Bảng lương</span>
+        </a>
+        <a class="nav-item" data-view="leaveRequests">
+          <span class="material-icons">event_busy</span>
+          <span>Đơn xin nghỉ</span>
+        </a>
+        <a class="nav-item" data-view="chat">
+          <span class="material-icons">chat</span>
+          <span>Nhắn tin</span>
+          <span id="chatUnreadBadge" class="nav-item-count-badge"></span>
+        </a>
+
+        <div class="nav-section-title">Hệ thống</div>
+        <a class="nav-item" data-view="account">
+          <span class="material-icons">manage_accounts</span>
+          <span>Tài khoản</span>
+        </a>
+        <a class="nav-item" data-view="settings">
+          <span class="material-icons">settings</span>
+          <span>Cài đặt</span>
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <button type="button" class="icon-btn" id="btnDarkMode" title="Dark mode"><span class="material-icons">dark_mode</span></button>
+        <button type="button" class="icon-btn" id="btnConfigToggle" title="Cấu hình"><span class="material-icons">settings</span></button>
+        <button type="button" class="icon-btn" id="btnBackup" title="Backup database"><span class="material-icons">backup</span></button>
+        <button type="button" class="icon-btn" id="btnLogout" title="Đăng xuất"><span class="material-icons">logout</span></button>
+      </div>
+      <div id="sidebarConfig" style="display:none; padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.1);">
+        <div class="config-google-wrap" style="background: rgba(255,255,255,0.1);">
+          <label style="color:#fff;">Google Maps API key (tìm địa điểm như Google Maps)</label>
+          <input type="password" id="inputGoogleApiKey" placeholder="Dán API key vào đây" autocomplete="off" style="background: rgba(255,255,255,0.15); color: #fff; border-color: rgba(255,255,255,0.3);">
+          <button type="button" class="btn-primary" id="btnSaveGoogleKey" style="margin-top: 8px; padding: 6px 12px; font-size: 12px;">Lưu & tải lại trang</button>
+          <p class="hint" style="color: rgba(255,255,255,0.8); margin-top: 8px;">Bật Maps JavaScript API + Places API tại <a href="https://console.cloud.google.com/apis/library" target="_blank" rel="noopener" style="color: #90caf9;">Google Cloud Console</a>. Sau khi lưu, trang sẽ tải lại.</p>
+        </div>
+      </div>
+    </aside>
+    <main class="main">
+      <button type="button" class="mobile-menu-btn" id="mobileMenuBtn" title="Mở menu">
+        <span class="material-icons">menu</span>
+      </button>
+
+      <!-- Dashboard View -->
+      <div class="table-wrap" id="viewDashboard" style="padding: 24px 32px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+          <h2 class="main-title" style="margin: 0;">Bảng điều khiển</h2>
+          <div style="display: flex; gap: 12px;">
+            <button type="button" class="btn-secondary" onclick="switchView('employees')"><span class="material-icons" style="font-size:18px;vertical-align:middle;">person_add</span> Thêm nhân sự</button>
+            <button type="button" class="btn-primary" onclick="switchView('leaveRequests')"><span class="material-icons" style="font-size:18px;vertical-align:middle;">fact_check</span> Duyệt đơn</button>
+          </div>
+        </div>
+        
+        <!-- KPI Cards -->
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
+          <div class="kpi-card" style="cursor: pointer;" onclick="switchView('employees')">
+            <div style="display:flex; justify-content: space-between; align-items: flex-start;">
+              <div>
+                <div class="kpi-label">Tổng nhân sự</div>
+                <div class="kpi-value dash-stat-blue" id="dashTotalEmp">-</div>
+              </div>
+              <div class="kpi-icon-wrap" style="width: 40px; height: 40px; border-radius: 8px; background: #e8eaf6; display:flex; align-items:center; justify-content:center; color: #3f51b5;">
+                <span class="material-icons">people</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="kpi-card" style="cursor: pointer;" onclick="switchView('attendanceLog')">
+            <div style="display:flex; justify-content: space-between; align-items: flex-start;">
+              <div>
+                <div class="kpi-label">Chấm công hôm nay</div>
+                <div class="kpi-value dash-stat-green" id="dashTodayAtt">-</div>
+              </div>
+              <div class="kpi-icon-wrap" style="width: 40px; height: 40px; border-radius: 8px; background: #e8f5e9; display:flex; align-items:center; justify-content:center; color: #4caf50;">
+                <span class="material-icons">fingerprint</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="kpi-card" style="cursor: pointer;" onclick="switchView('leaveRequests')">
+            <div style="display:flex; justify-content: space-between; align-items: flex-start;">
+              <div>
+                <div class="kpi-label">Đơn chờ duyệt</div>
+                <div class="kpi-value dash-stat-orange" id="dashPendingLeave">-</div>
+              </div>
+              <div class="kpi-icon-wrap" style="width: 40px; height: 40px; border-radius: 8px; background: #fff3e0; display:flex; align-items:center; justify-content:center; color: #ff9800;">
+                <span class="material-icons">pending_actions</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="kpi-card" id="dashLateCard" style="cursor: pointer;" onclick="switchView('attendanceLog')">
+            <div style="display:flex; justify-content: space-between; align-items: flex-start;">
+              <div>
+                <div class="kpi-label">Đi muộn / OT</div>
+                <div style="display:flex; gap: 16px; align-items: center;">
+                  <span class="kpi-value dash-stat-red" style="font-size: 22px;" id="dashLateCount">-</span>
+                  <span class="dash-kpi-muted" style="font-size: 11px;">muộn</span>
+                  <span class="kpi-value dash-stat-ot" style="font-size: 22px;" id="dashOtCount">-</span>
+                  <span class="dash-kpi-muted" style="font-size: 11px;">OT</span>
+                </div>
+                <div id="dashNotChecked" class="dash-kpi-muted" style="font-size: 11px; margin-top: 6px;"></div>
+              </div>
+              <div class="kpi-icon-wrap" style="width: 40px; height: 40px; border-radius: 8px; background: #fce4ec; display:flex; align-items:center; justify-content:center; color: #c62828;">
+                <span class="material-icons">warning_amber</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="kpi-card" id="dashLeaveBalanceCard" style="cursor: pointer;" onclick="switchView('leaveRequests')">
+            <div style="display:flex; justify-content: space-between; align-items: flex-start;">
+              <div>
+                <div class="kpi-label">Phép có lương còn lại</div>
+                <div class="kpi-value dash-stat-green" style="font-size: 22px;" id="dashLeaveBalance">–</div>
+                <div id="dashLeaveTotal" class="dash-kpi-muted" style="font-size: 11px; margin-top: 4px;"></div>
+              </div>
+              <div class="kpi-icon-wrap" style="width: 40px; height: 40px; border-radius: 8px; background: #e8f5e9; display:flex; align-items:center; justify-content:center; color: #4caf50;">
+                <span class="material-icons">event_available</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts -->
+        <div style="display:grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 24px;">
+          <div class="chart-card">
+            <h3 style="margin:0 0 16px 0;">Chấm công 7 ngày gần nhất</h3>
+            <div style="position:relative; height:220px;">
+              <canvas id="dashWeeklyChart"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <h3 style="margin:0 0 16px 0;">Tổng quan nhân sự</h3>
+            <div style="position:relative; height:220px;">
+              <canvas id="dashStatusChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cảnh báo & Danh sách nhanh -->
+        <div style="display:grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+          <!-- Bảng chấm công gần nhất -->
+          <div class="recent-att-card">
+            <div class="dash-card-head">
+              <h3>Chấm công mới nhất</h3>
+              <a href="#" onclick="switchView('attendanceLog'); return false;">Xem tất cả</a>
+            </div>
+            <div style="padding: 0;">
+              <table style="margin: 0; font-size: 13px;">
+                <tbody id="dashRecentAttBody">
+                  <tr><td colspan="3" class="dash-recent-empty">Đang tải...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Cảnh báo / Nhắc việc -->
+          <div class="alerts-card">
+            <div class="dash-card-head-warn">
+              <h3>
+                <span class="material-icons" style="font-size:18px;">notifications_active</span> Cần chú ý
+              </h3>
+            </div>
+            <div class="dash-alerts-body">
+              <ul id="dashAlerts">
+                <li>Đang kiểm tra dữ liệu...</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="main-header" id="headerEmployees" style="display:none; padding-bottom: 0; border-bottom: none; margin-bottom: 20px;">
+        <h1 class="main-title">Danh sách nhân sự</h1>
+      </div>
+      
+      <div class="table-wrap" id="viewEmployees" style="display:none;">
+        <div class="attendance-filter-section" style="margin-bottom: 16px;">
+          <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px;">
+            <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; flex: 1;">
+              <div class="form-group" style="margin-bottom: 0; min-width: 200px; max-width: 280px; flex: 1 1 200px;">
+                <label for="searchInput" class="att-filter-label">Tìm kiếm</label>
+                <div class="toolbar-search" style="min-width: 0; max-width: none; width: 100%;">
+                  <span class="material-icons">search</span>
+                  <input type="text" id="searchInput" placeholder="Tên hoặc mã nhân sự...">
+                </div>
+              </div>
+              <div class="form-group toolbar-filter" style="margin-bottom: 0;">
+                <label for="filterStatus" class="att-filter-label">Trạng thái</label>
+                <select id="filterStatus">
+                  <option value="all">Tất cả trạng thái</option>
+                  <option value="active" selected>Đang làm việc</option>
+                  <option value="inactive">Đã nghỉ việc</option>
+                </select>
+              </div>
+              <div class="form-group toolbar-filter" style="margin-bottom: 0;">
+                <label for="filterDepartment" class="att-filter-label">Phòng ban</label>
+                <select id="filterDepartment">
+                  <option value="">Tất cả phòng ban</option>
+                </select>
+              </div>
+              <div class="form-group toolbar-filter" style="margin-bottom: 0;">
+                <label for="filterPosition" class="att-filter-label">Chức vụ / Ca làm việc</label>
+                <select id="filterPosition">
+                  <option value="">Tất cả</option>
+                </select>
+              </div>
+            </div>
+            <div class="toolbar" style="margin-bottom: 0; display: flex; gap: 8px; flex-wrap: wrap; flex-shrink: 0;">
+              <button type="button" class="btn-create" id="btnCreate">
+                <span class="material-icons" style="font-size:20px">add</span>
+                Tạo mới
+              </button>
+              <button type="button" class="btn-secondary" id="btnExportEmployeesPdf" style="padding:10px 14px;">
+                <span class="material-icons" style="font-size:18px;vertical-align:middle;">picture_as_pdf</span> Xuất PDF
+              </button>
+              <button type="button" class="btn-secondary" id="btnExportEmployeesExcel" style="padding:10px 14px;">
+                <span class="material-icons" style="font-size:18px;vertical-align:middle;">table_chart</span> Excel
+              </button>
+              <button type="button" class="btn-secondary" id="btnSyncSheet" style="padding:10px 14px; background: linear-gradient(135deg, #1a7f4b, #145c30); color:#fff; border:none;" title="Đồng bộ từ Google Sheet">
+                <span class="material-icons" style="font-size:18px;vertical-align:middle;">sync</span> Đồng bộ Sheet
+              </button>
+              <button type="button" class="btn-secondary" id="btnImportEmployees" style="padding:10px 14px;" title="Import hàng loạt từ CSV/Excel">
+                <span class="material-icons" style="font-size:18px;vertical-align:middle;">upload_file</span> Import CSV
+              </button>
+              <input type="file" id="importFileInput" accept=".csv,.xlsx,.xls" style="display:none;">
+              <button type="button" class="btn-action danger" id="btnBulkDelete" style="display:none; padding:10px 16px; font-size:14px;" onclick="bulkDeleteSelected()">
+                <span class="material-icons" style="font-size:18px;vertical-align:middle;">delete</span> Xóa đã chọn (<span id="bulkDeleteCount">0</span>)
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div id="listMsg"></div>
+        <table id="tableList">
+          <thead>
+            <tr>
+              <th class="col-check"><input type="checkbox" id="checkAll" title="Chọn tất cả"></th>
+              <th class="col-employee">NHÂN SỰ</th>
+              <th>MÃ</th>
+              <th>TRẠNG THÁI</th>
+              <th>QUYỀN CHẤM CÔNG</th>
+              <th>CHỨC VỤ / CA LÀM VIỆC</th>
+              <th>VÙNG CHẤM CÔNG</th>
+              <th>THÂM NIÊN</th>
+              <th>PHÒNG BAN</th>
+              <th>EMAIL</th>
+              <th>ĐIỆN THOẠI</th>
+              <th class="col-actions">THAO TÁC</th>
+            </tr>
+          </thead>
+          <tbody id="listBody"></tbody>
+        </table>
+        <div id="listEmpty" class="empty-state" style="display:none;">
+          <span class="material-icons">people_outline</span>
+          <p>Chưa có nhân viên. Nhấn <strong>Tạo mới</strong> để thêm hồ sơ.</p>
+        </div>
+        
+        <div class="pagination-bar" style="justify-content: space-between; margin-top: 20px; padding-top: 16px; border-top: 1px solid #eee;">
+          <span class="records" id="paginationRecords">0 records</span>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <span>Page <span id="currentPage">1</span></span>
+            <div class="page-nav">
+              <button type="button" id="btnPrev" disabled>‹</button>
+              <button type="button" id="btnNext">›</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="table-wrap" id="viewPositions" style="display:none; padding: 24px 32px;">
+        <h2 class="main-title" style="margin-bottom:16px;">Chức vụ cửa hàng</h2>
+        <div class="toolbar" style="margin-bottom:16px;">
+          <button type="button" class="btn-create" id="btnAddPosition"><span class="material-icons" style="font-size:18px;">add</span> Thêm chức vụ</button>
+        </div>
+        <table>
+          <thead><tr><th>ID</th><th>Tên</th><th>Lương CB/tháng</th><th>Phụ cấp</th><th>Giờ/ngày</th><th>Lương giờ OT</th><th>Hệ số OT</th><th class="col-actions">Thao tác</th></tr></thead>
+          <tbody id="positionsBody"></tbody>
+        </table>
+        <div id="positionsEmpty" class="empty-state" style="display:none;">Chưa có chức vụ.</div>
+      </div>
+      <div class="table-wrap" id="viewShifts" style="display:none; padding: 24px 32px;">
+        <h2 class="main-title" style="margin-bottom:16px;">Ca làm việc</h2>
+        <div class="toolbar" style="margin-bottom:16px;">
+          <button type="button" class="btn-create" id="btnAddShift"><span class="material-icons" style="font-size:18px;">add</span> Thêm ca</button>
+        </div>
+        <table>
+          <thead><tr><th>ID</th><th>Tên ca</th><th>Giờ vào</th><th>Giờ ra</th><th class="col-actions">Thao tác</th></tr></thead>
+          <tbody id="shiftsBody"></tbody>
+        </table>
+        <div id="shiftsEmpty" class="empty-state" style="display:none;">Chưa có ca làm việc.</div>
+      </div>
+      <div class="table-wrap" id="viewDepartments" style="display:none; padding: 24px 32px;">
+        <h2 class="main-title" style="margin-bottom:16px;">Phòng ban</h2>
+        <p style="color:#666;font-size:14px;margin:-8px 0 16px 0;">Quản lý danh sách phòng ban để chọn nhanh khi tạo/sửa nhân viên.</p>
+        <div class="toolbar" style="margin-bottom:16px;">
+          <button type="button" class="btn-create" id="btnAddDepartment"><span class="material-icons" style="font-size:18px;">add</span> Thêm phòng ban</button>
+        </div>
+        <table class="table-dept">
+          <thead><tr><th>ID</th><th>Tên phòng ban</th><th>Mô tả</th><th class="col-dept-count">Số nhân viên</th><th class="col-actions">Thao tác</th></tr></thead>
+          <tbody id="departmentsBody"></tbody>
+        </table>
+        <div id="departmentsEmpty" class="empty-state" style="display:none;">Chưa có phòng ban. Thêm mới để dùng trong hồ sơ nhân viên.</div>
+      </div>
+      <div class="table-wrap" id="viewLeaveRequests" style="display:none; padding: 24px 32px;">
+        <h2 class="main-title" style="margin-bottom:16px;">Đơn xin nghỉ</h2>
+        <div class="toolbar" style="margin-bottom:16px;">
+          <select class="toolbar-filter" id="filterLeaveStatus">
+            <option value="">Tất cả</option>
+            <option value="pending">Chờ duyệt</option>
+            <option value="approved">Đã duyệt</option>
+            <option value="rejected">Từ chối</option>
+          </select>
+          <button type="button" class="btn-secondary" id="btnExportLeaveExcel" style="margin-left:4px;">
+            <span class="material-icons" style="font-size:18px;vertical-align:middle;">table_chart</span> Excel
+          </button>
+        </div>
+        <div id="leaveBalanceInfo" style="display:none; margin-bottom:16px; padding:14px 18px; background:#f0f7ff; border:1px solid #c2dbf7; border-radius:10px; font-size:14px;"></div>
+        <table>
+          <thead><tr><th>ID</th><th>Nhân viên</th><th>Từ ngày</th><th>Đến ngày</th><th>Loại</th><th>Lý do</th><th>Trạng thái</th><th>Ghi chú</th><th class="col-actions">Thao tác</th></tr></thead>
+          <tbody id="leaveRequestsBody"></tbody>
+        </table>
+        <div id="leaveEmpty" class="empty-state" style="display:none;">Chưa có đơn nào.</div>
+      </div>
+      <div class="table-wrap" id="viewAttendance" style="display:none; padding: 24px 32px;">
+        <h2 class="main-title" style="margin-bottom:16px;">Lịch sử chấm công</h2>
+        <div class="attendance-filter-section">
+          <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+            <div class="form-group" style="margin-bottom:0;">
+              <label for="attendanceMonth" class="att-filter-label">Tháng</label>
+              <input type="month" id="attendanceMonth">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label for="attendanceDate" class="att-filter-label">Ngày cụ thể</label>
+              <input type="date" id="attendanceDate">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label for="attendanceSearch" class="att-filter-label">Tên / Mã NV <span style="font-weight:400;color:#888;font-size:11px;">(nhân viên, không phải tài khoản đăng nhập)</span></label>
+              <input type="search" id="attendanceSearch" name="filter_att_employee_q" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="VD: họ tên hoặc mã NV (11222)">
+            </div>
+            <div class="form-group toolbar-filter" style="margin-bottom:0;">
+              <label for="attendanceDept" class="att-filter-label">Phòng ban</label>
+              <select id="attendanceDept">
+                <option value="">Tất cả</option>
+              </select>
+            </div>
+            <div class="form-group toolbar-filter" style="margin-bottom:0;">
+              <label for="attendanceType" class="att-filter-label">Loại</label>
+              <select id="attendanceType">
+                <option value="">Tất cả</option>
+                <option value="in">Vào ca</option>
+                <option value="out">Ra ca</option>
+                <option value="outside">Ra ngoài</option>
+              </select>
+            </div>
+            <button type="button" class="btn-secondary" id="btnExportAttendanceExcel" style="margin-left:4px;">
+              <span class="material-icons" style="font-size:18px;vertical-align:middle;">table_chart</span> Excel
+            </button>
+          </div>
+        </div>
+        <div id="attendanceStats" class="attendance-stats-line"></div>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nhân viên</th>
+              <th>Mã</th>
+              <th>Loại</th>
+              <th>Thời gian</th>
+              <th>Vị trí (lat, lng)</th>
+              <th>Lý do</th>
+              <th>Trạng thái</th>
+              <th class="col-actions">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="attendanceBody"></tbody>
+        </table>
+        <div id="attendanceEmpty" class="empty-state" style="display:none;">Chưa có bản ghi chấm công.</div>
+      </div>
+      <div class="table-wrap" id="viewPayroll" style="display:none; padding: 24px 32px;">
+        <h2 class="main-title" style="margin-bottom:16px;">Bảng lương theo chấm công</h2>
+        <div class="toolbar" style="margin-bottom:16px;">
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;">
+            <div class="form-group" style="margin-bottom:0;">
+              <label for="payrollMonth" style="font-size:13px;color:#555;">Tháng</label>
+              <input type="month" id="payrollMonth">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label for="payrollSearch" style="font-size:13px;color:#555;">Tìm theo tên / mã NV</label>
+              <input type="text" id="payrollSearch" placeholder="VD: Nguyễn Văn A hoặc MNV-01">
+            </div>
+            <button type="button" class="btn-secondary" id="btnExportPayroll" style="margin-left:8px;">
+              <span class="material-icons" style="font-size:18px;vertical-align:middle;">picture_as_pdf</span> Xuất PDF
+            </button>
+            <button type="button" class="btn-secondary" id="btnExportPayrollCsv" style="margin-left:4px;">
+              CSV
+            </button>
+            <button type="button" class="btn-secondary" id="btnExportPayrollExcel" style="margin-left:4px;">
+              <span class="material-icons" style="font-size:18px;vertical-align:middle;">table_chart</span> Excel
+            </button>
+          </div>
+        </div>
+        <div id="payrollSummary" style="margin-bottom:10px; color:#333; font-size:14px;"></div>
+        <table>
+          <thead>
+            <tr>
+              <th>Mã NV</th>
+              <th>Nhân viên</th>
+              <th>Chức vụ</th>
+              <th>Ngày công</th>
+              <th>Ngày đủ công</th>
+              <th>Nghỉ có lương</th>
+              <th>Nghỉ không lương</th>
+              <th>Lương CB</th>
+              <th>Phụ cấp</th>
+              <th>Giờ OT</th>
+              <th>Tiền OT</th>
+              <th>Thực lĩnh</th>
+            </tr>
+          </thead>
+          <tbody id="payrollBody"></tbody>
+        </table>
+        <div id="payrollEmpty" class="empty-state" style="display:none;">Chưa có dữ liệu bảng lương cho tháng đã chọn.</div>
+      </div>
+      <div class="table-wrap" id="viewChat" style="display:none; padding: 24px 32px;">
+        <h2 class="main-title" style="margin-bottom:16px;">Nhắn tin nhân viên</h2>
+        <div class="chat-layout">
+          <div class="chat-sidebar">
+            <div class="chat-sidebar-search">
+              <input type="text" id="chatSearchEmployee" placeholder="Tìm nhân viên...">
+            </div>
+            <div id="chatConversations" style="overflow:auto; flex:1;">
+              <div class="chat-conv-list-placeholder">Đang tải danh sách hội thoại...</div>
+            </div>
+          </div>
+          <div class="chat-main">
+            <div id="chatHeader" class="chat-main-header">
+              Chọn nhân viên để bắt đầu nhắn tin
+            </div>
+            <div id="chatMessages" class="chat-messages-scroll">
+              <div class="chat-msg-empty">Chưa có hội thoại nào được chọn.</div>
+            </div>
+            <div id="chatFilePreview" class="chat-file-preview-bar">
+              <span id="chatFilePreviewName"></span>
+              <button type="button" id="btnClearChatFile" style="margin-left:8px; border:none; background:none; color:#c62828; cursor:pointer;">Bỏ chọn</button>
+            </div>
+            <div class="chat-input-row">
+              <input type="file" id="chatFileInput" style="display:none;">
+              <button type="button" class="btn-secondary" id="btnPickChatFile" title="Đính kèm ảnh/tệp" style="padding:10px 12px;">📎</button>
+              <input type="text" id="chatInputMessage" class="chat-msg-input" placeholder="Nhập tin nhắn...">
+              <button type="button" class="btn-primary" id="btnSendChatMessage">Gửi</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Account View -->
+      <div class="account-view" id="viewAccount" style="display:none;">
+        <!-- Left Panel: Profile Card -->
+        <div class="account-left-panel">
+          <div class="account-profile-card">
+            <div class="account-profile-card-header">
+              <div class="account-avatar-wrap" id="accountAvatarWrap">
+                <img id="accountAvatarImg" class="account-avatar-img" alt="" src="" style="display:none;">
+                <div class="account-avatar" id="accountAvatarInitial" aria-hidden="true">
+                  <span class="material-icons" style="font-size:52px; color:rgba(255,255,255,0.9);">person</span>
+                </div>
+                <button type="button" class="account-avatar-edit-btn" onclick="document.getElementById('accountPhotoInput').click()" title="Đổi ảnh đại diện">
+                  <span class="material-icons">photo_camera</span>
+                </button>
+                <input type="file" id="accountPhotoInput" accept="image/*" style="display:none;" onchange="handleAccountPhotoChange(this)">
+              </div>
+            </div>
+            <div class="account-profile-card-body">
+              <h2 class="account-name" id="accountDisplayName">-</h2>
+              <div class="account-meta">
+                <span class="account-id" id="accountCode">-</span>
+                <span class="account-status active" id="accountStatus">ACTIVE</span>
+              </div>
+              <div class="account-divider"></div>
+              <div class="account-info-list">
+                <div class="account-info-item">
+                  <span class="material-icons">badge</span>
+                  <div>
+                    <div class="account-info-label">Chức vụ</div>
+                    <div class="account-info-value" id="accountPosition">-</div>
+                  </div>
+                </div>
+                <div class="account-info-item">
+                  <span class="material-icons">domain</span>
+                  <div>
+                    <div class="account-info-label">Phòng ban</div>
+                    <div class="account-info-value" id="accountDepartment">-</div>
+                  </div>
+                </div>
+                <div class="account-info-item">
+                  <span class="material-icons">calendar_month</span>
+                  <div>
+                    <div class="account-info-label">Ngày tham gia</div>
+                    <div class="account-info-value" id="accountCreatedAt">-</div>
+                  </div>
+                </div>
+                <div class="account-info-item">
+                  <span class="material-icons">email</span>
+                  <div>
+                    <div class="account-info-label">Email</div>
+                    <div class="account-info-value" id="accountEmail">-</div>
+                  </div>
+                </div>
+                <div class="account-info-item">
+                  <span class="material-icons">phone</span>
+                  <div>
+                    <div class="account-info-label">Điện thoại</div>
+                    <div class="account-info-value" id="accountPhone">-</div>
+                  </div>
+                </div>
+                <div class="account-info-item">
+                  <span class="material-icons">cake</span>
+                  <div>
+                    <div class="account-info-label">Ngày sinh</div>
+                    <div class="account-info-value" id="accountBirthDate">-</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Panel: Details -->
+        <div class="account-right-panel">
+          <!-- Admin Account Section -->
+          <div class="account-section-card">
+            <div class="account-section-header">
+              <div class="account-section-icon blue">
+                <span class="material-icons">manage_accounts</span>
+              </div>
+              <div>
+                <h3 class="account-section-title">Tài khoản quản trị</h3>
+                <p class="account-section-desc">Thông tin tài khoản đang đăng nhập.</p>
+              </div>
+            </div>
+            <div id="accountAdminMsg"></div>
+            <div class="account-details-grid">
+              <div class="account-detail-item">
+                <div class="account-detail-label">Tên đăng nhập</div>
+                <div class="account-detail-value" id="accountUsername">-</div>
+              </div>
+              <div class="account-detail-item">
+                <div class="account-detail-label">Loại tài khoản</div>
+                <div class="account-detail-value" id="accountAccountType">-</div>
+              </div>
+              <div class="account-detail-item">
+                <div class="account-detail-label">Mã nhân viên</div>
+                <div class="account-detail-value" id="accountEmployeeCode">-</div>
+              </div>
+              <div class="account-detail-item">
+                <div class="account-detail-label">Ca làm việc</div>
+                <div class="account-detail-value" id="accountShift">-</div>
+              </div>
+            </div>
+            <div style="margin-top: 16px;">
+              <button type="button" class="btn-secondary" id="btnEditProfile" onclick="openEditProfile()">
+                <span class="material-icons" style="font-size:16px;vertical-align:middle;">edit</span> Chỉnh sửa hồ sơ
+              </button>
+            </div>
+          </div>
+
+          <!-- Security & Credentials Section -->
+          <div class="account-section-card">
+            <div class="account-section-header">
+              <div class="account-section-icon amber">
+                <span class="material-icons">lock</span>
+              </div>
+              <div>
+                <h3 class="account-section-title">Bảo mật & Xác thực</h3>
+                <p class="account-section-desc">Thay đổi mật khẩu để bảo vệ tài khoản.</p>
+              </div>
+            </div>
+            <div id="settingsPasswordMsg" style="margin-bottom: 14px;"></div>
+            <div class="security-form">
+              <div class="form-group">
+                <label>Mật khẩu hiện tại</label>
+                <div class="password-input-wrap">
+                  <input type="password" id="settingsCurrentPassword" placeholder="Nhập mật khẩu hiện tại" autocomplete="current-password">
+                  <button type="button" class="password-toggle" onclick="togglePasswordVisibility('settingsCurrentPassword', this)">
+                    <span class="material-icons">visibility</span>
+                  </button>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Mật khẩu mới</label>
+                <div class="password-input-wrap">
+                  <input type="password" id="settingsNewPassword" placeholder="Ít nhất 6 ký tự" autocomplete="new-password">
+                  <button type="button" class="password-toggle" onclick="togglePasswordVisibility('settingsNewPassword', this)">
+                    <span class="material-icons">visibility</span>
+                  </button>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Xác nhận mật khẩu mới</label>
+                <div class="password-input-wrap">
+                  <input type="password" id="settingsConfirmPassword" placeholder="Nhập lại mật khẩu mới" autocomplete="new-password">
+                  <button type="button" class="password-toggle" onclick="togglePasswordVisibility('settingsConfirmPassword', this)">
+                    <span class="material-icons">visibility</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div style="margin-top: 14px; display: flex; align-items: center; gap: 12px;">
+              <button type="button" class="btn-primary" id="btnSavePassword">
+                <span class="material-icons" style="font-size:16px;vertical-align:middle;">save</span>
+                Lưu mật khẩu
+              </button>
+            </div>
+          </div>
+
+          <!-- Session Info -->
+          <div class="account-section-card session-card">
+            <div class="session-info">
+              <span class="material-icons" style="color: #22c55e; font-size: 18px;">verified_user</span>
+              <div>
+                <div class="session-title">Phiên bản bảo mật</div>
+                <div class="session-sub">Phiên đăng nhập đang hoạt động</div>
+              </div>
+            </div>
+            <div class="session-version" id="sessionVersion">TrueFace v1.0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings View -->
+      <div class="table-wrap" id="viewSettings" style="display:none; padding: 24px 32px;">
+        <h2 class="main-title" style="margin-bottom:24px;">Cài đặt hệ thống</h2>
+
+        <div class="settings-wrap">
+          <!-- Backup & Restore -->
+          <div class="settings-section">
+            <h3 class="settings-section-title">Backup & Restore</h3>
+            <p class="settings-section-desc">Tải file dữ liệu (.db) để lưu trữ hoặc khôi phục. <strong style="color:#c62828;">Cảnh báo:</strong> restore sẽ ghi đè toàn bộ dữ liệu hiện tại.</p>
+            <div id="settingsRestoreMsg"></div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+              <button type="button" class="btn-primary" id="btnDownloadBackup">
+                <span class="material-icons" style="font-size:18px;vertical-align:middle;">download</span> Tải Backup (.db)
+              </button>
+              <span class="settings-muted-inline">hoặc</span>
+              <button type="button" class="btn-secondary" id="btnRestoreTrigger">Khôi phục từ file</button>
+              <input type="file" id="restoreFileInput" accept=".db" style="display:none;">
+            </div>
+          </div>
+
+          <!-- Thông tin hệ thống -->
+          <div class="settings-section">
+            <h3 class="settings-section-title">Thông tin hệ thống</h3>
+            <p class="settings-section-desc">Thông tin về phiên bản và trạng thái server.</p>
+            <div id="settingsSysInfo">
+              <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                <div class="settings-stat-box">
+                  <div class="settings-stat-label">Phiên bản</div>
+                  <div class="settings-stat-value">TrueFace v1.0</div>
+                </div>
+                <div class="settings-stat-box">
+                  <div class="settings-stat-label">Thời gian server</div>
+                  <div class="settings-stat-value" id="settingsServerTime">Đang tải...</div>
+                </div>
+                <div class="settings-stat-box">
+                  <div class="settings-stat-label">Tài khoản đăng nhập</div>
+                  <div class="settings-stat-value" id="settingsCurrentUser">-</div>
+                </div>
+              </div>
+              <button type="button" class="btn-secondary" id="btnReloadSysInfo" style="margin-top:14px;" onclick="loadSettingsSysInfo()">
+                <span class="material-icons" style="font-size:16px;vertical-align:middle;">refresh</span> Cập nhật thời gian
+              </button>
+            </div>
+          </div>
+
+          <!-- Hướng dẫn sử dụng -->
+          <div class="settings-section">
+            <h3 class="settings-section-title">Hướng dẫn nhanh</h3>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:14px;">
+              <div class="settings-hint-cell">
+                <div class="settings-hint-title"><span class="material-icons" style="font-size:18px;">people</span> Nhân sự</div>
+                <div class="settings-hint-body">Tạo nhân viên mới → cấp tài khoản → gán ca & chức vụ → nhân viên đăng nhập app để chấm công.</div>
+              </div>
+              <div class="settings-hint-cell">
+                <div class="settings-hint-title"><span class="material-icons" style="font-size:18px;">fingerprint</span> Chấm công</div>
+                <div class="settings-hint-body">Nhân viên chấm công bằng app điện thoại. Admin xem lịch sử & thống kê trên web.</div>
+              </div>
+              <div class="settings-hint-cell">
+                <div class="settings-hint-title"><span class="material-icons" style="font-size:18px;">location_on</span> Vùng chấm công</div>
+                <div class="settings-hint-body">Cấu hình vùng GPS để giới hạn khu vực nhân viên được phép check-in.</div>
+              </div>
+              <div class="settings-hint-cell">
+                <div class="settings-hint-title"><span class="material-icons" style="font-size:18px;">payments</span> Lương</div>
+                <div class="settings-hint-body">Chọn tháng → tính lương theo ngày công thực tế → xuất PDF hoặc CSV.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal-overlay hidden" id="modalLeaveAction">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="leaveActionTitle">Xử lý đơn nghỉ</h2>
+        <button type="button" class="modal-close" onclick="document.getElementById('modalLeaveAction').classList.add('hidden')"><span class="material-icons">close</span></button>
+      </div>
+      <div class="modal-body">
+        <p id="leaveActionDesc" style="color:#666; font-size:14px; margin-bottom:16px;"></p>
+        <div id="leaveActionMsg"></div>
+        <div class="form-group">
+          <label>Ghi chú cho nhân viên <span style="font-weight:400; color:#999;">(tùy chọn)</span></label>
+          <textarea id="leaveActionNote" rows="3" placeholder="VD: Đơn được duyệt. Vui lòng đảm bảo bàn giao công việc trước khi nghỉ." style="width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:8px; font-size:14px; resize:vertical; font-family:inherit;"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" onclick="document.getElementById('modalLeaveAction').classList.add('hidden')">Hủy</button>
+        <button type="button" class="btn-primary" id="btnConfirmLeaveAction">Xác nhận</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="modalEditProfile">
+    <div class="modal" style="max-width:480px;">
+      <div class="modal-header">
+        <h2>Chỉnh sửa hồ sơ</h2>
+        <button type="button" class="modal-close" onclick="document.getElementById('modalEditProfile').classList.add('hidden')"><span class="material-icons">close</span></button>
+      </div>
+      <div class="modal-body">
+        <div id="editProfileMsg"></div>
+        <div class="form-group">
+          <label>Tên đăng nhập</label>
+          <input type="text" id="editProfileUsername" readonly tabindex="-1" style="background:#e8eaed; cursor:default;">
+        </div>
+        <div class="form-group">
+          <label>Họ và tên</label>
+          <input type="text" id="editProfileFullName" placeholder="Họ và tên" autocomplete="name">
+        </div>
+        <div class="form-group">
+          <label>Mã nhân viên</label>
+          <input type="text" id="editProfileEmployeeCode" placeholder="VD: NV-001" autocomplete="off">
+          <p id="editProfileCodeHint" class="edit-profile-code-hint" style="margin:6px 0 0; font-size:12px; color:#64748b;"></p>
+        </div>
+        <div class="form-group">
+          <label>Phòng ban</label>
+          <select id="editProfileDepartmentId">
+            <option value="">— Không chọn —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Chức vụ</label>
+          <select id="editProfilePositionId"></select>
+        </div>
+        <div class="form-group">
+          <label>Ca làm việc</label>
+          <select id="editProfileShiftId"></select>
+        </div>
+        <div class="form-group">
+          <label>Ngày sinh</label>
+          <input type="date" id="editProfileBirthDate">
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="editProfileEmail" placeholder="email@example.com" autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label>Số điện thoại</label>
+          <input type="tel" id="editProfilePhone" placeholder="VD: 0901234567" autocomplete="tel">
+        </div>
+        <button type="button" class="btn-primary" style="margin-top:6px;" onclick="saveEditProfile()">Lưu thay đổi</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="modalPosition">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Chức vụ</h2>
+        <button type="button" class="modal-close" onclick="document.getElementById('modalPosition').classList.add('hidden')"><span class="material-icons">close</span></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="positionId">
+        <div id="positionFormMsg"></div>
+        <div class="form-group">
+          <label>Tên chức vụ *</label>
+          <input type="text" id="positionName" placeholder="VD: Nhân viên bán hàng">
+        </div>
+        <div class="form-group">
+          <label>Mô tả</label>
+          <input type="text" id="positionDesc" placeholder="Tùy chọn">
+        </div>
+        <div class="modal-form-row cols-2">
+          <div class="form-group">
+            <label>Lương cơ bản/tháng (VNĐ)</label>
+            <input type="number" id="positionBaseSalary" placeholder="VD: 5000000" min="0" step="1000" value="5000000">
+            <small style="color:#888;font-size:11px;">Lương cứng hàng tháng cho chức vụ này.</small>
+          </div>
+          <div class="form-group">
+            <label>Phụ cấp/tháng (VNĐ)</label>
+            <input type="number" id="positionAllowance" placeholder="VD: 1000000" min="0" step="1000" value="0">
+            <small style="color:#888;font-size:11px;">Phụ cấp theo chức vụ (xăng xe, điện thoại, ...).</small>
+          </div>
+        </div>
+        <div class="modal-form-row cols-3">
+          <div class="form-group">
+            <label>Giờ làm tiêu chuẩn/ngày</label>
+            <input type="number" id="positionStandardHours" placeholder="VD: 8" min="1" max="24" step="0.5" value="8">
+            <small style="color:#888;font-size:11px;">Số giờ làm tiêu chuẩn mỗi ngày.</small>
+          </div>
+          <div class="form-group">
+            <label>Lương giờ OT (VNĐ)</label>
+            <input type="number" id="positionHourlyRate" placeholder="VD: 25000" min="0" step="1000" value="25000">
+            <small style="color:#888;font-size:11px;">Tiền công mỗi giờ tăng ca.</small>
+          </div>
+          <div class="form-group">
+            <label>Hệ số tăng ca</label>
+            <input type="number" id="positionOTMultiplier" placeholder="1.5" min="1" step="0.1" value="1.5">
+            <small style="color:#888;font-size:11px;">VD: 1.5 = 150% lương giờ.</small>
+          </div>
+        </div>
+        <div class="modal-footer" style="padding-left:0;padding-right:0;">
+          <button type="button" class="btn-secondary" onclick="document.getElementById('modalPosition').classList.add('hidden')">Hủy</button>
+          <button type="button" class="btn-primary" onclick="savePosition()">Lưu</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-overlay hidden" id="modalShift">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Ca làm việc</h2>
+        <button type="button" class="modal-close" onclick="document.getElementById('modalShift').classList.add('hidden')"><span class="material-icons">close</span></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="shiftId">
+        <div id="shiftFormMsg"></div>
+        <div class="form-group">
+          <label>Tên ca *</label>
+          <input type="text" id="shiftName" placeholder="VD: Ca sáng">
+        </div>
+        <div class="modal-form-row cols-2">
+          <div class="form-group">
+            <label>Giờ vào</label>
+            <input type="time" id="shiftStart" value="08:00">
+          </div>
+          <div class="form-group">
+            <label>Giờ ra</label>
+            <input type="time" id="shiftEnd" value="17:00">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Mô tả</label>
+          <input type="text" id="shiftDesc" placeholder="Tùy chọn">
+        </div>
+        <div class="modal-footer" style="padding-left:0;padding-right:0;">
+          <button type="button" class="btn-secondary" onclick="document.getElementById('modalShift').classList.add('hidden')">Hủy</button>
+          <button type="button" class="btn-primary" onclick="saveShift()">Lưu</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-overlay hidden" id="modalDepartment">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Phòng ban</h2>
+        <button type="button" class="modal-close" onclick="document.getElementById('modalDepartment').classList.add('hidden')"><span class="material-icons">close</span></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="departmentId">
+        <div id="departmentFormMsg"></div>
+        <div class="form-group">
+          <label>Tên phòng ban *</label>
+          <input type="text" id="departmentName" placeholder="VD: Kinh doanh">
+        </div>
+        <div class="form-group">
+          <label>Mô tả</label>
+          <input type="text" id="departmentDesc" placeholder="Tùy chọn">
+        </div>
+        <div class="modal-footer" style="padding-left:0;padding-right:0;">
+          <button type="button" class="btn-secondary" onclick="document.getElementById('modalDepartment').classList.add('hidden')">Hủy</button>
+          <button type="button" class="btn-primary" onclick="saveDepartment()">Lưu</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-overlay hidden" id="modalEmployeeZones">
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <h2 id="empZonesTitle">Vùng chấm công</h2>
+        <button type="button" class="modal-close" id="empZonesClose"><span class="material-icons">close</span></button>
+      </div>
+      <div class="modal-body">
+        <p style="color:#666;font-size:14px;margin-bottom:16px;">Nhân viên chỉ được check-in khi đứng trong một trong các vùng dưới đây. Thêm vùng bằng bản đồ (Google Maps / chọn trên bản đồ).</p>
+        <div id="empZonesMsg"></div>
+        <div id="empZonesList"></div>
+        <button type="button" class="btn-create" id="btnAddEmpZone" style="margin-top:12px;">
+          <span class="material-icons" style="font-size:20px">add</span> Thêm vùng
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="modalAddEmpZone">
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <h2>Thêm vùng chấm công (chọn trên bản đồ)</h2>
+        <button type="button" class="modal-close" id="modalAddEmpZoneClose"><span class="material-icons">close</span></button>
+      </div>
+      <div class="modal-body">
+        <div id="addEmpZoneMsg"></div>
+        <div class="form-group">
+          <label>Tìm địa điểm — gõ tên công ty, đường, quận hoặc địa chỉ (như Google Maps khi đã cấu hình API key)</label>
+          <div class="place-search-wrap">
+            <input type="text" id="empZoneSearch" placeholder="VD: Vincom, Lê Thánh Tôn, Quận 1, Cầu Giấy Hà Nội..." autocomplete="off">
+          </div>
+          <div id="placeSearchLoading" class="place-search-loading" style="display:none;">Đang tìm...</div>
+          <div id="placeResults" class="place-results"></div>
+          <p id="empZoneSearchModeHint" class="search-mode-hint">Đang dùng OpenStreetMap. Để gợi ý địa điểm như Google Maps: sidebar → Cấu hình → nhập Google API key.</p>
+        </div>
+        <div class="form-group">
+          <label>Bản đồ — bấm vào vị trí để lấy tọa độ hoặc chọn từ tìm kiếm trên</label>
+          <div id="zoneMap"></div>
+          <p class="zone-map-hint">Hoặc lấy tọa độ từ <a href="https://www.google.com/maps" target="_blank" rel="noopener">Google Maps</a>: bấm chuột phải vào địa điểm &gt; Lấy tọa độ.</p>
+        </div>
+        <div class="form-group">
+          <label>Tên vùng *</label>
+          <input type="text" id="empZoneName" placeholder="VD: Văn phòng HCM">
+        </div>
+        <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <label>Vĩ độ *</label>
+            <input type="number" step="any" id="empZoneLat" placeholder="10.7769">
+          </div>
+          <div>
+            <label>Kinh độ *</label>
+            <input type="number" step="any" id="empZoneLng" placeholder="106.7009">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Bán kính (mét) * — tối thiểu 50</label>
+          <input type="number" min="50" id="empZoneRadius" value="200">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" id="modalAddEmpZoneCancel">Hủy</button>
+        <button type="button" class="btn-primary" id="modalAddEmpZoneSubmit">Lưu vùng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Import hàng loạt -->
+  <div class="modal-overlay hidden" id="modalImport">
+    <div class="modal" style="max-width:560px;">
+      <div class="modal-header">
+        <h2>Import nhân viên hàng loạt</h2>
+        <button type="button" class="modal-close" onclick="document.getElementById('modalImport').classList.add('hidden')"><span class="material-icons">close</span></button>
+      </div>
+      <div class="modal-body">
+        <p style="color:#666;font-size:14px;margin-bottom:16px;">
+          Tải file CSV hoặc Excel có các cột: <strong>code, name</strong> (bắt buộc), 
+          <strong>department, email, phone, position_id, shift_id, paid_leave_days_per_year, daily_wage, allowed_checkin</strong> (tùy chọn).
+          Hỗ trợ nhiều tên cột thân thiện (VD: <code>ho_ten</code>, <code>ma_nv</code>, <code>phong_ban</code>, <code>dien_thoai</code>...).
+        </p>
+        <div id="importMsg" style="margin-bottom:12px;"></div>
+        <div style="border:2px dashed #cbd5e1;border-radius:12px;padding:28px;text-align:center;cursor:pointer;background:#f8fafc;" id="importDropZone">
+          <input type="file" id="importFile" accept=".csv,.xlsx,.xls" style="display:none;">
+          <div style="margin-bottom:8px;">
+            <span class="material-icons" style="font-size:36px;color:#94a3b8;">upload_file</span>
+          </div>
+          <div style="font-size:14px;color:#475569;font-weight:600;" id="importFileLabel">Kéo thả file hoặc nhấn để chọn</div>
+          <div style="font-size:12px;color:#94a3b8;margin-top:4px;" id="importFileName"></div>
+        </div>
+        <div style="margin-top:14px; display:flex; gap:16px; flex-wrap:wrap; align-items:center;">
+          <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;">
+            <input type="checkbox" id="importSkipHeader" checked>
+            <span>Bỏ qua dòng tiêu đề (header row)</span>
+          </label>
+          <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;">
+            <input type="checkbox" id="importCreateAccount">
+            <span>Tạo tài khoản cho mỗi nhân viên</span>
+          </label>
+        </div>
+        <div id="importProgress" style="display:none; margin-top:14px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="flex:1; height:8px; background:#e2e8f0;border-radius:4px;overflow:hidden;">
+              <div id="importBar" style="height:100%; background:linear-gradient(90deg,#4f46e5,#7c3aed);width:0%;transition:width .3s;"></div>
+            </div>
+            <span id="importCount" style="font-size:12px;color:#64748b;min-width:50px;text-align:right;">0/0</span>
+          </div>
+          <div id="importStatus" style="font-size:12px;color:#475569;margin-top:6px;"></div>
+        </div>
+        <div id="importResult" style="display:none; margin-top:14px; max-height:240px; overflow-y:auto; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px; font-size:13px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" onclick="document.getElementById('modalImport').classList.add('hidden')">Đóng</button>
+        <button type="button" class="btn-primary" id="btnRunImport" disabled>
+          <span class="material-icons" style="font-size:16px;vertical-align:middle;">system_update_alt</span> Import
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="modalCreate">
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <h2>Tạo mới nhân viên</h2>
+        <button type="button" class="modal-close" id="modalClose"><span class="material-icons">close</span></button>
+      </div>
+      <div class="modal-body">
+        <div id="formMsg"></div>
+        <form id="formAdd">
+          <div class="form-group">
+            <label>Mã nhân viên *</label>
+            <input type="text" name="code" placeholder="VD: MNV-00" required>
+          </div>
+          <div class="form-group">
+            <label>Họ tên *</label>
+            <input type="text" name="name" placeholder="VD: Nguyễn Văn A" required>
+          </div>
+        <div class="form-group">
+          <label>Phòng ban</label>
+          <select name="department_id" id="formAddDepartmentId">
+            <option value="">— Không chọn —</option>
+          </select>
+        </div>
+          <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div>
+              <label>Email</label>
+              <input type="email" name="email" placeholder="VD: a@company.com" onblur="checkCreateField(this, 'email')">
+              <span class="dup-hint" id="dupEmail" style="color:#c62828;font-size:12px;display:none;"></span>
+            </div>
+            <div>
+              <label>Số điện thoại</label>
+              <input type="tel" name="phone" placeholder="VD: 0901234567" onblur="checkCreateField(this, 'phone')">
+              <span class="dup-hint" id="dupPhone" style="color:#c62828;font-size:12px;display:none;"></span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Chức vụ</label>
+            <select name="position_id" id="formAddPositionId">
+              <option value="">-- Chọn chức vụ --</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Ca làm việc (để trống nếu linh hoạt)</label>
+            <select name="shift_id" id="formAddShiftId">
+              <option value="">-- Ca linh hoạt / không cố định --</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Số ngày nghỉ có lương/năm</label>
+            <input type="number" name="paid_leave_days_per_year" id="formAddPaidLeave" min="0" value="12" placeholder="12">
+          </div>
+          <div class="form-group">
+            <label>Ảnh khuôn mặt (5 ảnh để nhận diện tốt hơn) *</label>
+            <p style="color:#666;font-size:13px;margin:4px 0 8px 0;">Chọn 5 ảnh khác nhau (góc mặt, ánh sáng khác nhau) để hệ thống nhận diện chính xác hơn.</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <div><label style="font-size:12px;">Ảnh 1</label><input type="file" name="photo_1" accept="image/*" required></div>
+              <div><label style="font-size:12px;">Ảnh 2</label><input type="file" name="photo_2" accept="image/*" required></div>
+              <div><label style="font-size:12px;">Ảnh 3</label><input type="file" name="photo_3" accept="image/*" required></div>
+              <div><label style="font-size:12px;">Ảnh 4</label><input type="file" name="photo_4" accept="image/*" required></div>
+              <div><label style="font-size:12px;">Ảnh 5</label><input type="file" name="photo_5" accept="image/*" required></div>
+            </div>
+          </div>
+          <div class="form-group" style="margin-top:20px; padding-top:16px; border-top:1px solid #eee;">
+            <label>Vị trí chấm công (tùy chọn) — thêm ngay hoặc thêm sau từ cột "Vùng"</label>
+            <p style="color:#666;font-size:13px;margin:4px 0 8px 0;">Tìm địa điểm (như Google Maps khi đã cấu hình API key), chọn rồi bấm "Thêm vị trí".</p>
+            <div class="place-search-wrap">
+              <input type="text" id="createEmpZoneSearch" placeholder="Gõ địa chỉ, tên công ty, đường, quận..." autocomplete="off">
+            </div>
+            <div id="createPlaceSearchLoading" class="place-search-loading" style="display:none;">Đang tìm...</div>
+            <div id="createPlaceResults" class="place-results"></div>
+            <p id="createEmpZoneSearchModeHint" class="search-mode-hint" style="display:none;"></p>
+            <div style="display:grid; grid-template-columns:1fr 1fr auto auto; gap:8px; align-items:end; margin-top:8px;">
+              <div>
+                <label style="font-size:12px;">Tên vùng</label>
+                <input type="text" id="createEmpZoneName" placeholder="VD: Văn phòng HCM">
+              </div>
+              <div>
+                <label style="font-size:12px;">Bán kính (m)</label>
+                <input type="number" min="50" id="createEmpZoneRadius" value="200" style="width:100%;">
+              </div>
+              <div style="display:flex;gap:4px;">
+                <input type="number" step="any" id="createEmpZoneLat" placeholder="Vĩ độ" style="width:90px;" title="Vĩ độ">
+                <input type="number" step="any" id="createEmpZoneLng" placeholder="Kinh độ" style="width:90px;" title="Kinh độ">
+              </div>
+              <button type="button" class="btn-primary" id="btnAddCreateZone">Thêm vị trí</button>
+            </div>
+            <div id="createPendingZonesList" class="pending-zones-list"></div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" id="modalCancel">Hủy</button>
+        <button type="button" class="btn-primary" id="modalSubmit">Lưu</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="modalEditEmployee">
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <h2>Sửa nhân viên</h2>
+        <button type="button" class="modal-close" onclick="document.getElementById('modalEditEmployee').classList.add('hidden')"><span class="material-icons">close</span></button>
+      </div>
+      <div class="modal-body">
+        <div id="editEmpMsg"></div>
+        <div class="form-group">
+          <label>Họ tên *</label>
+          <input type="text" id="editEmpName" placeholder="Họ tên">
+        </div>
+        <div class="form-group">
+          <label>Phòng ban</label>
+          <select id="editEmpDepartmentId">
+            <option value="">— Không chọn —</option>
+          </select>
+        </div>
+        <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <label>Email</label>
+            <input type="email" id="editEmpEmail" placeholder="VD: a@company.com" onblur="checkEditField(this, 'email')">
+            <span id="editDupEmail" style="color:#c62828;font-size:12px;display:none;"></span>
+          </div>
+          <div>
+            <label>Số điện thoại</label>
+            <input type="tel" id="editEmpPhone" placeholder="VD: 0901234567" onblur="checkEditField(this, 'phone')">
+            <span id="editDupPhone" style="color:#c62828;font-size:12px;display:none;"></span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Ngày sinh (để hiển thị tuổi trên hồ sơ)</label>
+          <input type="date" id="editEmpBirthDate">
+        </div>
+        <div class="form-group">
+          <label>Chức vụ</label>
+          <select id="editEmpPositionId"><option value="">-- Chọn chức vụ --</option></select>
+        </div>
+        <div class="form-group">
+          <label>Ca làm việc (để trống nếu linh hoạt)</label>
+          <select id="editEmpShiftId"><option value="">-- Ca linh hoạt / không cố định --</option></select>
+        </div>
+        <div class="form-group">
+          <label>Số ngày nghỉ có lương/năm</label>
+          <input type="number" id="editEmpPaidLeave" min="0" value="12">
+        </div>
+        <div class="form-group">
+          <label>Trạng thái</label>
+          <select id="editEmpStatus">
+            <option value="active">Đang làm việc</option>
+            <option value="inactive">Đã nghỉ việc</option>
+          </select>
+        </div>
+        <div class="modal-footer" style="padding-left:0;padding-right:0;"><button type="button" class="btn-primary" onclick="saveEditEmployee()">Cập nhật thông tin</button></div>
+        <hr style="margin:20px 0;">
+        <h3 style="font-size:16px;margin-bottom:12px;">Cập nhật ảnh khuôn mặt</h3>
+        <p style="color:#666;font-size:13px;margin-bottom:12px;">Upload lại ảnh mới để cập nhật nhận diện khuôn mặt.</p>
+        <div id="editEmpPhotoMsg"></div>
+        <div class="form-group">
+          <div id="editEmpCurrentPhoto" style="margin-bottom:8px;"></div>
+          <input type="file" id="editEmpPhoto" accept="image/*" multiple>
+          <p style="color:#777;font-size:12px;margin-top:4px;">Chọn 1-5 ảnh khuôn mặt (nhiều góc khác nhau).</p>
+        </div>
+        <div class="modal-footer" style="padding-left:0;padding-right:0;"><button type="button" class="btn-primary" onclick="saveEditPhoto()">Cập nhật ảnh</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Đồng bộ Google Sheet -->
+  <div id="modalSyncSheet" style="display:none; position:fixed; inset:0; z-index:2000; align-items:center; justify-content:center; background:rgba(0,0,0,0.55);">
+    <div style="background:#fff; border-radius:16px; padding:28px 32px; max-width:580px; width:95%; box-shadow:0 20px 60px rgba(0,0,0,0.25); font-family:inherit;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <h3 style="margin:0; font-size:20px; font-weight:700; color:#1e293b;">Đồng bộ từ Google Sheet</h3>
+        <button type="button" onclick="closeSyncSheetModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#94a3b8; padding:4px;">&times;</button>
+      </div>
+      <div id="syncSheetConfig" style="margin-bottom:20px;">
+        <label style="font-size:13px; font-weight:600; color:#475569; display:block; margin-bottom:6px;">Google Sheet ID</label>
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="syncSheetId" placeholder="1BvBM..." style="flex:1; padding:10px 14px; border:1.5px solid #e2e8f0; border-radius:10px; font-size:14px; box-sizing:border-box;">
+          <button type="button" class="btn-create" id="btnSaveSheetId" style="padding:10px 16px; font-size:13px; flex-shrink:0;">Lưu</button>
+        </div>
+        <p style="color:#64748b; font-size:12px; margin:6px 0 0 0;">Sheet ID nằm trong URL: <code style="background:#f1f5f9; padding:1px 5px; border-radius:4px;">docs.google.com/spreadsheets/d/<b>...SHEET_ID...</b>/edit</code></p>
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px;">
+        <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;">
+          <input type="checkbox" id="syncDryRun" checked style="width:16px; height:16px;">
+          <span>Dry-run (xem trước, không lưu gì)</span>
+        </label>
+        <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;">
+          <input type="checkbox" id="syncForceFace" style="width:16px; height:16px;">
+          <span>Cập nhật lại face (embedding)</span>
+        </label>
+      </div>
+      <div id="syncSheetLog" style="display:none; max-height:280px; overflow-y:auto; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px; font-size:13px; font-family:monospace; line-height:1.6; color:#334155; margin-bottom:16px;"></div>
+      <div id="syncSheetSummary" style="display:none; background:#f0fdf4; border:1px solid #86efac; border-radius:10px; padding:14px; font-size:14px; color:#166534; margin-bottom:16px;"></div>
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button type="button" onclick="closeSyncSheetModal()" class="btn-secondary" style="padding:10px 20px;">Đóng</button>
+        <button type="button" id="btnRunSyncSheet" class="btn-create" style="padding:10px 20px; background:linear-gradient(135deg,#1a7f4b,#145c30);">
+          <span class="material-icons" style="font-size:18px;vertical-align:middle;">sync</span> Bắt đầu đồng bộ
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

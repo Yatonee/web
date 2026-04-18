@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web Admin - Cấp hồ sơ nhân viên</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+    .container { max-width: 800px; margin: 0 auto; }
+    h1 { color: #1565C0; margin-bottom: 24px; }
+    .card { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    label { display: block; margin-bottom: 4px; font-weight: 600; color: #333; }
+    input[type="text"], input[type="file"] { width: 100%; padding: 10px 12px; border: 1px solid #ccc; border-radius: 8px; margin-bottom: 16px; }
+    button { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
+    .btn-primary { background: #1565C0; color: #fff; }
+    .btn-primary:hover { background: #0d47a1; }
+    .btn-danger { background: #c62828; color: #fff; }
+    .btn-danger:hover { background: #b71c1c; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #f5f5f5; font-weight: 600; }
+    .msg { padding: 12px; border-radius: 8px; margin-bottom: 16px; }
+    .msg.success { background: #e8f5e9; color: #2e7d32; }
+    .msg.error { background: #ffebee; color: #c62828; }
+    .avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }
+    .empty { text-align: center; color: #666; padding: 40px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Web Admin – Cấp hồ sơ nhân viên</h1>
+    <p style="color:#666;">Chỉ admin tạo hồ sơ tại đây. App chấm công đồng bộ danh sách từ web, nhân viên không tự tạo profile.</p>
+
+    <div class="card">
+      <h2 style="margin-top:0;">Thêm nhân viên</h2>
+      <div id="formMsg"></div>
+      <form id="formAdd">
+        <label>Mã nhân viên *</label>
+        <input type="text" name="code" placeholder="VD: NV001" required>
+        <label>Họ tên *</label>
+        <input type="text" name="name" placeholder="Nguyễn Văn A" required>
+        <label>Phòng ban</label>
+        <input type="text" name="department" placeholder="VD: Kỹ thuật">
+        <label>Ảnh khuôn mặt (5 ảnh để nhận diện tốt hơn) *</label>
+        <p style="color:#666;font-size:12px;margin:2px 0 8px 0;">Chọn 5 ảnh khác nhau (góc mặt, ánh sáng khác nhau).</p>
+        <input type="file" name="photo_1" accept="image/*" required>
+        <input type="file" name="photo_2" accept="image/*" required>
+        <input type="file" name="photo_3" accept="image/*" required>
+        <input type="file" name="photo_4" accept="image/*" required>
+        <input type="file" name="photo_5" accept="image/*" required>
+        <button type="submit" class="btn-primary">Lưu hồ sơ</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-top:0;">Danh sách nhân viên</h2>
+      <div id="listMsg"></div>
+      <div id="listWrap">
+        <table id="tableList">
+          <thead>
+            <tr>
+              <th>Ảnh</th>
+              <th>Mã</th>
+              <th>Họ tên</th>
+              <th>Phòng ban</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="listBody"></tbody>
+        </table>
+        <div id="listEmpty" class="empty" style="display:none;">Chưa có nhân viên. Thêm hồ sơ ở form trên.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = (() => {
+      const q = new URLSearchParams(window.location.search);
+      const apiQ = (q.get('api') || '').trim();
+      const apiLS = (localStorage.getItem('API_BASE') || '').trim();
+      const api = (apiQ || apiLS).replace(/\/$/, '');
+      if (api) return api;
+      if (window.location.origin === 'null' || window.location.protocol === 'file:') return 'http://127.0.0.1:5000';
+      return '';
+    })();
+    async function apiGet(path) {
+      const r = await fetch(API + path);
+      if (!r.ok) throw new Error(await r.text());
+      return r.json();
+    }
+    async function apiPost(path, body) {
+      const r = await fetch(API + path, { method: 'POST', body });
+      const text = await r.text();
+      if (!r.ok) throw new Error(text || r.statusText);
+      return text ? JSON.parse(text) : {};
+    }
+    async function apiDelete(path) {
+      const r = await fetch(API + path, { method: 'DELETE' });
+      if (!r.ok) throw new Error(await r.text());
+    }
+
+    function showMsg(elId, text, isError) {
+      const el = document.getElementById(elId);
+      el.innerHTML = text ? `<div class="msg ${isError ? 'error' : 'success'}">${text}</div>` : '';
+    }
+
+    document.getElementById('formAdd').onsubmit = async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      showMsg('formMsg', '');
+      try {
+        await apiPost('/api/employees', fd);
+        showMsg('formMsg', 'Đã lưu hồ sơ nhân viên.');
+        e.target.reset();
+        loadList();
+      } catch (err) {
+        showMsg('formMsg', err.message || 'Lỗi lưu.', true);
+      }
+    };
+
+    async function loadList() {
+      showMsg('listMsg', '');
+      try {
+        const list = await apiGet('/api/employees');
+        const tbody = document.getElementById('listBody');
+        const empty = document.getElementById('listEmpty');
+        if (!list.length) {
+          tbody.innerHTML = '';
+          empty.style.display = 'block';
+          return;
+        }
+        empty.style.display = 'none';
+        tbody.innerHTML = list.map(e => `
+          <tr>
+            <td>${e.photo_url ? `<img class="avatar" src="${e.photo_url}" alt="">` : '-'}</td>
+            <td>${e.code}</td>
+            <td>${e.name}</td>
+            <td>${e.department || '-'}</td>
+            <td><button type="button" class="btn-danger" onclick="del(${e.id})">Xóa</button></td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        showMsg('listMsg', err.message || 'Lỗi tải danh sách.', true);
+      }
+    }
+
+    async function del(id) {
+      if (!confirm('Xóa hồ sơ nhân viên này?')) return;
+      try {
+        await apiDelete('/api/employees/' + id);
+        loadList();
+      } catch (err) {
+        showMsg('listMsg', err.message || 'Lỗi xóa.', true);
+      }
+    }
+
+    loadList();
+  </script>
+</body>
+</html>
