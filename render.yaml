@@ -8,7 +8,7 @@ envVars:
   - key: PYTHON_VERSION
     value: "3.12.3"
 services:
-  - type: web
+  - type: admin
     name: trueface-backend
     env: python
     region: singapore
