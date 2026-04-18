@@ -1366,9 +1366,16 @@ def update_employee_profile(eid):
     try:
         # ... parse các field như cũ ...
 
-        # ✅ Lấy danh sách office (multi-select)
-        office_ids_raw = request.form.getlist('office_ids') or request.form.getlist('office_id')
-        office_ids = [int(x) for x in office_ids_raw if x]
+        # Lay danh sach office (multi-select)
+        # Ho tro 2 cach gui: form-data (nhieu field cung ten) hoac JSON body
+        office_ids = []
+        if request.is_json:
+            oid_data = request.json.get('office_ids', []) or []
+            if isinstance(oid_data, list):
+                office_ids = [int(x) for x in oid_data if x]
+        if not office_ids:
+            office_ids_raw = request.form.getlist('office_ids') or request.form.getlist('office_id')
+            office_ids = [int(x) for x in office_ids_raw if x]
 
         conn = get_db()
         cur = conn.execute('SELECT id FROM employees WHERE id = ?', (eid,))
@@ -2121,20 +2128,38 @@ def update_employee(emp_id):
                     return jsonify({'error': 'birth_date phải là YYYY-MM-DD'}), 400
             updates.append('birth_date = ?')
             args.append(bd[:10] if bd else None)
-        if 'office_id' in data:
+        # Chỉ xử lý office_id đơn lẻ khi KHÔNG có office_ids
+        # (nếu có office_ids thì office_id chính được xử lý bên dưới)
+        if 'office_id' in data and 'office_ids' not in data:
             oid = _parse_optional_fk(data.get('office_id'))
             updates.append('office_id = ?')
             args.append(oid)
         if 'office_ids' in data:
             oid_list = data.get('office_ids')
+            # Ho tro nhieu dang gui: list, string JSON, string comma-separated, gia tri don
+            if isinstance(oid_list, str):
+                oid_str = oid_list.strip()
+                if oid_str.startswith('['):
+                    try:
+                        import json
+                        oid_list = json.loads(oid_str)
+                    except Exception:
+                        oid_list = []
+                elif oid_str:
+                    oid_list = [x.strip() for x in oid_str.split(',') if x.strip()]
+                else:
+                    oid_list = []
             if isinstance(oid_list, list):
                 conn.execute('DELETE FROM employee_offices WHERE employee_id = ?', (emp_id,))
                 for ofid in oid_list:
                     if ofid:
-                        conn.execute(
-                            'INSERT OR IGNORE INTO employee_offices (employee_id, office_id) VALUES (?, ?)',
-                            (emp_id, int(ofid))
-                        )
+                        try:
+                            conn.execute(
+                                'INSERT OR IGNORE INTO employee_offices (employee_id, office_id) VALUES (?, ?)',
+                                (emp_id, int(ofid))
+                            )
+                        except Exception:
+                            pass
                 # Cập nhật office_id chính (trường office_id của bảng employees)
                 main_office = oid_list[0] if oid_list else None
                 if main_office:
