@@ -6,9 +6,9 @@ envVars:
   - key: PORT
     value: 10000
   - key: PYTHON_VERSION
-    value: "3.12"
+    value: "3.12.3"
 services:
-  - type: admin
+  - type: web
     name: trueface-backend
     env: python
     region: singapore
