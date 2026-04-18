@@ -1,7 +1,5 @@
 # Cấu hình Render - Deploy Web Backend
-preDeployCommand: pip install -r requirements.txt
-deployCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
-healthCheckPath: /
+# Chỉ định Python version bằng environment variable
 envVars:
   - key: FLASK_ENV
     value: production
@@ -13,4 +11,7 @@ services:
   - type: web
     name: trueface-backend
     env: python
-    runtime: python312
+    region: singapore
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    healthCheckPath: /
